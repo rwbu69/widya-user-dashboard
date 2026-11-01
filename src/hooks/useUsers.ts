@@ -18,8 +18,8 @@ export function useUsers() {
                 setStatus('success')
             })
             .catch((error: unknown) => {
-                if (error instanceof DOMException && error.name === 'AbortError')
-                    return setStatus('error')
+                if (error instanceof DOMException && error.name === 'AbortError') return
+                setStatus('error')
             })
         return () => controller.abort()
     }, [attempt])

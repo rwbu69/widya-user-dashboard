@@ -5,8 +5,7 @@ Aplikasi Single Page Application sederhana untuk menampilkan daftar pengguna dar
 Frontend Developer Intern (React.js). Seluruh komponen UI dibuat sendiri, tanpa template
 dashboard maupun library UI. 
 
-- **Demo:** <link-deploy>
-- **Repository:** <link-repo>
+- **Demo:** [<Take Home Test User Dashboard>](https://widya-user-dashboard-eosin.vercel.app/)
 
 ## Menjalankan Secara Lokal
 

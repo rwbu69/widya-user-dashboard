@@ -4,7 +4,7 @@ Aplikasi Single Page Application sederhana yang dibuat secara AI assisted untuk 
 
 Dashboard menampilkan ringkasan jumlah pengguna, daftar pengguna dalam tabel, pencarian berdasarkan nama atau email, serta modal untuk melihat detail pengguna. Tampilan menggunakan gaya minimalis dengan warna netral, border tipis, dan layout yang responsive.
 
-- **Demo:** [<Take Home Test User Dashboard>](https://widya-user-dashboard-eosin.vercel.app/)
+- **Demo:** [Widya Dashboard FE Test](https://widya-user-dashboard-eosin.vercel.app)
 
 ## Menjalankan Secara Lokal
 
@@ -45,74 +45,31 @@ src/
 
 ### 1. State Management & Lifecycle
 
-Data di-fetch di custom hook `useUsers` (`src/hooks/useUsers.ts`) memakai `useEffect` dan service
-`fetchUsers`.
-Pemanggilan HTTP-nya sendiri ada di `src/services/userApi.ts` supaya hook tidak tahu detail URL
-atau cara fetch. State dikelola dengan `useState`: daftar `users` dan satu `status`
-(`'loading' | 'success' | 'error'`), sehingga tidak ada kombinasi state yang saling bertentangan.
-Status respons juga dicek lewat `response.ok`, karena `fetch` tidak melempar error untuk status
-404/500.
-
-Error jaringan dan error HTTP mengubah status menjadi `'error'`, sehingga UI dapat menampilkan
-pesan kegagalan dan tombol retry. `AbortError` tidak dianggap sebagai error karena request tersebut
-dibatalkan secara sengaja.
-
-**Mencegah infinite loop.** Dependency array effect hanya berisi `[attempt]`, yaitu sebuah angka
-(primitif yang stabil). Tidak ada object, array, atau fungsi yang dibuat ulang tiap render di
-dalamnya. Infinite loop biasanya muncul kalau effect memanggil `setState` sementara dependency-nya
-berubah di setiap render, atau kalau dependency array dihilangkan. Di project ini effect hanya
-jalan saat komponen pertama kali muncul dan ketika tombol "Coba lagi" menaikkan `attempt`.
-
-**Mencegah request yang tidak terpakai.** Effect membuat `AbortController`, mengirim `signal`-nya
-ke `fetch`, dan mengembalikan cleanup `() => controller.abort()`. Saat komponen unmount atau
-effect akan dijalankan ulang, request lama dibatalkan. Dengan begitu response lama tidak bisa
-menimpa state (race condition) dan koneksi tidak terbuang sia-sia. `AbortError` diabaikan karena
-itu pembatalan yang disengaja, bukan kegagalan. Perlu dicatat, sejak React 18 warning "state
-update on an unmounted component" sudah dihapus, jadi manfaat utama cleanup ini adalah
-mencegah race condition dan pekerjaan sia-sia. Di mode development, `StrictMode` menjalankan
-effect dua kali (mount, cleanup, mount) justru untuk memastikan cleanup-nya benar. Untuk aplikasi
-yang lebih besar saya akan mempertimbangkan TanStack Query (caching, retry, dan de-duplikasi
-request sudah tersedia).
+- Data di-fetch di custom hook `useUsers` dengan `useEffect`. Request-nya ada di `services/userApi.ts`, jadi hook tidak perlu tahu URL atau detail `fetch`.
+- State-nya cuma `users` dan satu `status` (`'loading' | 'success' | 'error'`), sehingga tidak ada kombinasi yang saling bertentangan, misalnya loading dan error sekaligus.
+- `fetch` tidak melempar error untuk status 404/500, makanya `response.ok` saya cek manual. Error jaringan dan error HTTP sama-sama mengubah status jadi `'error'`, lalu UI menampilkan pesan dan tombol "Coba lagi".
+- Infinite loop tidak terjadi karena dependency array-nya hanya `[attempt]`, sebuah angka. Loop biasanya muncul kalau dependency-nya object atau fungsi yang dibuat ulang tiap render, atau array-nya tidak ditulis. Di sini effect jalan saat render pertama dan saat tombol retry menaikkan `attempt`.
+- Request lama dibatalkan dengan `AbortController`: `signal` dikirim ke `fetch`, dan cleanup `controller.abort()` jalan saat komponen unmount atau sebelum effect dijalankan ulang. Dengan begitu response lama tidak bisa menimpa state dan koneksi tidak terbuang. `AbortError` tidak dianggap error karena pembatalannya memang disengaja.
+- Sejak React 18, warning "update on an unmounted component" sudah dihapus, jadi manfaat utama cleanup ini adalah mencegah race condition.
+- Untuk aplikasi yang lebih besar, saya akan pakai TanStack Query karena caching, retry, dan de-duplikasi request sudah tersedia.
 
 ### 2. Struktur Folder
 
-Saya memisahkan kode berdasarkan **tanggung jawab**-nya:
-
-- `services/`: satu-satunya tempat yang tahu URL dan cara memanggil API. Kalau endpoint berubah,
-  cukup edit satu file.
-- `hooks/`: logika stateful (fetching, loading, error) yang terpisah dari tampilan, sehingga
-  `App` tetap ringkas dan hook mudah dipakai ulang atau dites.
-- `components/`: komponen UI yang kecil dan fokus pada satu hal, menerima data lewat props.
-  `UserSummary` menampilkan ringkasan, `UserTable` menampilkan data, `UserTableSkeleton`
-  menangani loading, dan `UserErrorState` menangani error serta retry. `UserModal` menampilkan
-  detail pengguna.
-- `types/`: satu sumber kebenaran untuk bentuk data `User`, dipakai oleh service, hook, dan
-  komponen.
-- `utils/`: fungsi murni tanpa React yang gampang dites.
-
-Ukuran project ini kecil, jadi pengelompokan per jenis file sudah cukup dan paling mudah dipahami.
-Jika aplikasi tumbuh dengan banyak fitur (users, posts, dan seterusnya), saya akan beralih ke
-struktur per fitur (`features/users/` berisi komponen, hook, dan service miliknya sendiri) agar
-kode yang berubah bersama-sama tetap berdekatan.
+- Kode saya pisah berdasarkan tanggung jawabnya:
+  - `services/`: satu-satunya tempat yang tahu cara memanggil API. Kalau endpoint berubah, cukup edit satu file.
+  - `hooks/`: logika fetching dan state, terpisah dari tampilan supaya `App` tetap ringkas.
+  - `components/`: komponen UI kecil yang menerima data lewat props (`UserSummary`, `UserTable`, `UserTableSkeleton`, `UserErrorState`, `UserModal`).
+  - `types/`: satu sumber untuk bentuk data `User`, dipakai service, hook, dan komponen.
+  - `utils/`: fungsi murni tanpa React, mudah dites.
+- Project ini kecil, jadi pengelompokan per jenis file sudah cukup dan paling mudah dibaca.
+- Kalau fiturnya bertambah (users, posts, dan seterusnya), saya akan pindah ke struktur per fitur (`features/users/`), supaya kode yang berubah bersamaan letaknya berdekatan.
 
 ### 3. Optimasi Kinerja (10.000 data)
 
-Pertama saya cari tahu sumber lag-nya. Memfilter 10.000 string dengan `includes` itu murah
-(beberapa milidetik). Yang mahal adalah **merender ribuan elemen DOM** setiap kali huruf diketik.
-Pendekatannya berlapis:
-
-1. **`useDeferredValue`** (sudah dipakai di `App.tsx`). Input memakai `query` yang selalu update
-   instan, sedangkan daftar memakai `deferredQuery`. React merender daftar dengan prioritas
-   rendah dan bisa menginterupsinya kalau ada ketikan baru, sehingga kolom pencarian tetap
-   responsif. `useTransition` bisa dipakai untuk tujuan serupa.
-2. **`useMemo`** untuk hasil filter dan **`memo`** pada `UserRow`, supaya filter tidak dihitung
-   ulang dan baris yang tidak berubah tidak dirender ulang.
-3. **Virtualisasi list** (misalnya `@tanstack/react-virtual` atau `react-window`). Hanya item
-   yang terlihat di layar (sekitar 20 sampai 30) yang dirender, bukan 10.000. Ini solusi paling
-   efektif untuk masalah DOM yang terlalu besar.
-4. Jika masih kurang: **debounce** input untuk mengurangi frekuensi filter, **pagination** atau
-   pencarian di sisi server, atau memindahkan filtering ke **Web Worker**.
-
-Untuk 10 data seperti sekarang, optimasi ini belum perlu. Poin 1 sampai 2 saya terapkan karena
-murah dan tidak menambah kompleksitas, sedangkan virtualisasi baru saya tambahkan kalau datanya
-memang sebesar itu.
+- Pertama saya pastikan dulu sumber lag-nya. Memfilter 10.000 string dengan `includes` hanya butuh beberapa milidetik. Yang berat adalah merender ribuan elemen DOM setiap kali satu huruf diketik.
+- Langkah yang saya ambil, berurutan:
+  - `useDeferredValue` (sudah dipakai di `App.tsx`): input memakai `query` yang selalu update instan, sedangkan daftar memakai `deferredQuery`. React merender daftar dengan prioritas rendah dan bisa menghentikannya kalau ada ketikan baru, jadi kolom pencarian tetap responsif.
+  - `useMemo` untuk hasil filter dan `memo` pada `UserRow`, supaya filter tidak dihitung ulang dan baris yang tidak berubah tidak dirender ulang.
+  - Virtualisasi list (`@tanstack/react-virtual` atau `react-window`): hanya sekitar 20 sampai 30 baris yang terlihat di layar yang dirender, bukan 10.000. Ini solusi paling efektif untuk masalah DOM.
+  - Kalau masih kurang: debounce input, pagination atau pencarian di sisi server, atau memindahkan filtering ke Web Worker.
+- Dengan 10 data seperti sekarang, saya baru menerapkan dua langkah pertama karena murah dan tidak menambah kompleksitas. Virtualisasi baru saya tambahkan kalau datanya memang sebesar itu.
